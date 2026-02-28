@@ -1,37 +1,33 @@
-name: Provision t3.micro EC2
+name: Provision EC2
+
 on:
-workflow_dispatch:
-    inputs:
-      ec2-name:
-        description: EC2 name
-        required: true
-        default: 'App Server'
-        type: string
+  push:
+    branches:
+      - main
+
 jobs:
-  provision-ec2:
+  terraform:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '14'
-      - name: Configure AWS credentials
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: '${{ secrets.ACCESS_KEYS }}'
-          aws-secret-access-key: '${{ secrets.SECRET_ACCESS_KEYS }}'
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan
+
       - name: Terraform Apply
-        id:   apply
-        env:
-          TF_VAR_ec2_name:  "${{ github.event.inputs.ec2-name }}"
-        run: |
-          cd tf-example/
-          terraform init
-          terraform validate
-          terraform plan 
-          terraform apply -auto-approve
+        run: terraform apply -auto-approve
