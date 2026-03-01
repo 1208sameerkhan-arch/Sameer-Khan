@@ -2,7 +2,7 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-# VPC
+# Create VPC
 resource "aws_vpc" "main_vpc" {
   cidr_block = "10.0.0.0/16"
 
@@ -11,11 +11,11 @@ resource "aws_vpc" "main_vpc" {
   }
 }
 
-# Public Subnet
+# Create Public Subnet
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "ap-south-1"
+  availability_zone       = "ap-south-1a"
   map_public_ip_on_launch = true
 
   tags = {
@@ -23,7 +23,7 @@ resource "aws_subnet" "public_subnet" {
   }
 }
 
-# Internet Gateway
+# Create Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main_vpc.id
 
@@ -32,7 +32,7 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# Route Table
+# Create Route Table
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.main_vpc.id
 
@@ -46,8 +46,9 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-# Associate Route Table to Subnet
+# Associate Route Table with Subnet
 resource "aws_route_table_association" "public_assoc" {
   subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.public_rt.id
 }
+
