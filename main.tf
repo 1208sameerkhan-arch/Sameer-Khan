@@ -2,16 +2,22 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-# Create VPC
+# -----------------------
+# VPC
+# -----------------------
 resource "aws_vpc" "main_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
   tags = {
-    Name = "My-VPC"
+    Name = "Practice-VPC"
   }
 }
 
-# Create Public Subnet
+# -----------------------
+# Public Subnet
+# -----------------------
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.1.0/24"
@@ -23,16 +29,20 @@ resource "aws_subnet" "public_subnet" {
   }
 }
 
-# Create Internet Gateway
+# -----------------------
+# Internet Gateway
+# -----------------------
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main_vpc.id
 
   tags = {
-    Name = "Main-IGW"
+    Name = "Practice-IGW"
   }
 }
 
-# Create Route Table
+# -----------------------
+# Route Table
+# -----------------------
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.main_vpc.id
 
@@ -46,9 +56,10 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-# Associate Route Table with Subnet
+# -----------------------
+# Route Table Association
+# -----------------------
 resource "aws_route_table_association" "public_assoc" {
   subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.public_rt.id
 }
-

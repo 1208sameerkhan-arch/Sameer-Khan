@@ -1,58 +1,37 @@
-provider "aws" {
-  region = "ap-south-1"
-}
+name: Terraform Deploy
 
-# VPC
-resource "aws_vpc" "main_vpc" {
-  cidr_block = "10.0.0.0/16"
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
-  tags = {
-    Name = "My-VPC"
-  }
-}
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
 
-# Public Subnet
-resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.main_vpc.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "ap-south-1a"
-  map_public_ip_on_launch = true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-  tags = {
-    Name = "Public-Subnet"
-  }
-}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
 
-# Internet Gateway
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main_vpc.id
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
 
-  tags = {
-    Name = "Main-IGW"
-  }
-}
+      - name: Terraform Init
+        run: terraform init
 
-# Route Table
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.main_vpc.id
+      - name: Terraform Validate
+        run: terraform validate
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
+      - name: Terraform Plan
+        run: terraform plan
 
-  tags = {
-    Name = "Public-Route-Table"
-  }
-}
-
-# Associate Route Table to Subnet
-resource "aws_route_table_association" "public_assoc" {
-  subnet_id      = aws_subnet.public_subnet.id
-  route_table_id = aws_route_table.public_rt.id
-}
-
-terraform init
-terraform plan
-terraform apply -auto-approve
-
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
