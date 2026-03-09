@@ -165,7 +165,7 @@ resource "aws_lb" "app_lb" {
 #####################################
 
 resource "aws_lb_target_group" "tg" {
-  name     = "terraform-tg"
+  name     = "terraform-tg-123"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
