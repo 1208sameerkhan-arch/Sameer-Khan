@@ -9,6 +9,10 @@ on:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
     permissions:
       id-token: write
       contents: read
@@ -19,8 +23,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::123456789012:role/github-actions
-          aws-region: us-west-2
+          role-to-assume: arn:aws:iam::915204716339:role/github-actions
+          aws-region: ap-south-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
