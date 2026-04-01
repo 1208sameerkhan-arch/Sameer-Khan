@@ -12,116 +12,108 @@ data "aws_availability_zones" "available" {}
 # VPC
 ############################################
 
-resource "aws_vpc" "eks_vpc" {
-  cidr_block           = "10.0.0.0/16"
+resource "aws_vpc" "fresh_vpc" {
+  cidr_block           = "10.20.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = {
-    Name = "eks-vpc"
-  }
+  tags = { Name = "fresh-eks-vpc" }
 }
 
 ############################################
 # INTERNET GATEWAY
 ############################################
 
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.eks_vpc.id
+resource "aws_internet_gateway" "fresh_igw" {
+  vpc_id = aws_vpc.fresh_vpc.id
 }
 
 ############################################
-# PUBLIC SUBNET
+# PUBLIC SUBNETS
 ############################################
 
-resource "aws_subnet" "public" {
+resource "aws_subnet" "fresh_public" {
   count                   = 2
-  vpc_id                  = aws_vpc.eks_vpc.id
-  cidr_block              = "10.0.${count.index}.0/24"
+  vpc_id                  = aws_vpc.fresh_vpc.id
+  cidr_block              = "10.20.${count.index}.0/24"
   availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
 
-  tags = {
-    Name                            = "eks-public-${count.index}"
-    "kubernetes.io/cluster/eks-cluster" = "shared"
-    "kubernetes.io/role/elb"         = "1"
-  }
+  tags = { Name = "fresh-public-${count.index}" }
 }
 
 ############################################
-# PRIVATE SUBNET
+# PRIVATE SUBNETS
 ############################################
 
-resource "aws_subnet" "private" {
+resource "aws_subnet" "fresh_private" {
   count             = 2
-  vpc_id            = aws_vpc.eks_vpc.id
-  cidr_block        = "10.0.${count.index + 10}.0/24"
+  vpc_id            = aws_vpc.fresh_vpc.id
+  cidr_block        = "10.20.${count.index + 10}.0/24"
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
-  tags = {
-    Name                                 = "eks-private-${count.index}"
-    "kubernetes.io/cluster/eks-cluster"   = "shared"
-    "kubernetes.io/role/internal-elb"     = "1"
+  tags = { Name = "fresh-private-${count.index}" }
+}
+
+############################################
+# PUBLIC ROUTE TABLE
+############################################
+
+resource "aws_route_table" "fresh_public_rt" {
+  vpc_id = aws_vpc.fresh_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.fresh_igw.id
   }
+}
+
+resource "aws_route_table_association" "fresh_public_assoc" {
+  count          = 2
+  subnet_id      = aws_subnet.fresh_public[count.index].id
+  route_table_id = aws_route_table.fresh_public_rt.id
 }
 
 ############################################
 # NAT GATEWAY
 ############################################
 
-resource "aws_eip" "nat" {
+resource "aws_eip" "fresh_nat_eip" {
   domain = "vpc"
 }
 
-resource "aws_nat_gateway" "nat" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
+resource "aws_nat_gateway" "fresh_nat" {
+  allocation_id = aws_eip.fresh_nat_eip.id
+  subnet_id     = aws_subnet.fresh_public[0].id
+
+  depends_on = [aws_internet_gateway.fresh_igw]
 }
 
 ############################################
-# ROUTE TABLE - PUBLIC
+# PRIVATE ROUTE TABLE
 ############################################
 
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.eks_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-}
-
-resource "aws_route_table_association" "public_assoc" {
-  count          = 2
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public_rt.id
-}
-
-############################################
-# ROUTE TABLE - PRIVATE
-############################################
-
-resource "aws_route_table" "private_rt" {
-  vpc_id = aws_vpc.eks_vpc.id
+resource "aws_route_table" "fresh_private_rt" {
+  vpc_id = aws_vpc.fresh_vpc.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id
+    nat_gateway_id = aws_nat_gateway.fresh_nat.id
   }
 }
 
-resource "aws_route_table_association" "private_assoc" {
+resource "aws_route_table_association" "fresh_private_assoc" {
   count          = 2
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private_rt.id
+  subnet_id      = aws_subnet.fresh_private[count.index].id
+  route_table_id = aws_route_table.fresh_private_rt.id
 }
 
 ############################################
-# IAM ROLE FOR EKS CLUSTER
+# IAM ROLE FOR CLUSTER
 ############################################
 
-resource "aws_iam_role" "eks_cluster_role" {
-  name = "eks-cluster-role"
+resource "aws_iam_role" "fresh_cluster_role" {
+  name = "fresh-eks-cluster-role-2026"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -133,8 +125,8 @@ resource "aws_iam_role" "eks_cluster_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "cluster_policy" {
-  role       = aws_iam_role.eks_cluster_role.name
+resource "aws_iam_role_policy_attachment" "fresh_cluster_policy" {
+  role       = aws_iam_role.fresh_cluster_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
@@ -142,28 +134,23 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
 # EKS CLUSTER
 ############################################
 
-resource "aws_eks_cluster" "eks" {
-  name     = "eks-cluster"
-  role_arn = aws_iam_role.eks_cluster_role.arn
-  version  = "1.31"
+resource "aws_eks_cluster" "fresh_cluster" {
+  name     = "fresh-eks-cluster-2026"
+  role_arn = aws_iam_role.fresh_cluster_role.arn
 
   vpc_config {
-    subnet_ids              = aws_subnet.private[*].id
-    endpoint_private_access = true
-    endpoint_public_access  = true
+    subnet_ids = aws_subnet.fresh_private[*].id
   }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.cluster_policy
-  ]
+  depends_on = [aws_iam_role_policy_attachment.fresh_cluster_policy]
 }
 
 ############################################
 # IAM ROLE FOR NODE GROUP
 ############################################
 
-resource "aws_iam_role" "eks_nodes_role" {
-  name = "eks-node-role"
+resource "aws_iam_role" "fresh_node_role" {
+  name = "fresh-eks-node-role-2026"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -175,18 +162,18 @@ resource "aws_iam_role" "eks_nodes_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "worker_node_policy" {
-  role       = aws_iam_role.eks_nodes_role.name
+resource "aws_iam_role_policy_attachment" "fresh_worker_policy" {
+  role       = aws_iam_role.fresh_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "cni_policy" {
-  role       = aws_iam_role.eks_nodes_role.name
+resource "aws_iam_role_policy_attachment" "fresh_cni_policy" {
+  role       = aws_iam_role.fresh_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-resource "aws_iam_role_policy_attachment" "registry_policy" {
-  role       = aws_iam_role.eks_nodes_role.name
+resource "aws_iam_role_policy_attachment" "fresh_registry_policy" {
+  role       = aws_iam_role.fresh_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
@@ -194,11 +181,11 @@ resource "aws_iam_role_policy_attachment" "registry_policy" {
 # NODE GROUP
 ############################################
 
-resource "aws_eks_node_group" "nodes" {
-  cluster_name    = aws_eks_cluster.eks.name
-  node_group_name = "eks-node-group"
-  node_role_arn   = aws_iam_role.eks_nodes_role.arn
-  subnet_ids      = aws_subnet.private[*].id
+resource "aws_eks_node_group" "fresh_nodes" {
+  cluster_name    = aws_eks_cluster.fresh_cluster.name
+  node_group_name = "fresh-node-group-2026"
+  node_role_arn   = aws_iam_role.fresh_node_role.arn
+  subnet_ids      = aws_subnet.fresh_private[*].id
 
   scaling_config {
     desired_size = 2
@@ -209,9 +196,7 @@ resource "aws_eks_node_group" "nodes" {
   instance_types = ["t3.medium"]
 
   depends_on = [
-    aws_iam_role_policy_attachment.worker_node_policy,
-    aws_iam_role_policy_attachment.cni_policy,
-    aws_iam_role_policy_attachment.registry_policy,
-    aws_eks_cluster.eks
+    aws_eks_cluster.fresh_cluster,
+    aws_nat_gateway.fresh_nat
   ]
 }
