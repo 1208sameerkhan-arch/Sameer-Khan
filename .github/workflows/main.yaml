@@ -2,7 +2,7 @@ name: Deploy EKS
 
 on:
   push:
-    branches: [ main ]
+    branches: feature/eks
 
 jobs:
   terraform:
@@ -24,4 +24,5 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
 
       - run: terraform init
+      - run : terraform plan
       - run: terraform apply -auto-approve
