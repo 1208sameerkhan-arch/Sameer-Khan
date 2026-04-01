@@ -1,17 +1,12 @@
-name: Terraform AWS Workflow
+name: Deploy EKS
 
 on:
-  pull_request:
-    branches: [ main ]
   push:
     branches: [ main ]
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: terraform
 
     permissions:
       id-token: write
@@ -23,19 +18,10 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::915204716339:role/github-actions
+          role-to-assume: arn:aws:iam::915204716339:role/Testing-EKS
           aws-region: ap-south-1
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Plan
-        if: github.event_name == 'pull_request'
-        run: terraform plan -no-color
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve
+      - run: terraform init
+      - run: terraform apply -auto-approve
